@@ -223,8 +223,9 @@ Image <- ggraph(layout)+
   
   theme(
     plot.margin=unit(c(0,0,0,0),"cm"),
-  ) 
+  ) +
+  expand_limits(x = c(-8, 8), y = c(-8, 8))
 Image
-ggsave("E:/Work!/my_plot.jpeg", width = 10, heigh =8, dpi=600)
+ggsave("my_plot.jpeg", width = 10, heigh =8, dpi=600)
 
 
