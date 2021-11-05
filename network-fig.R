@@ -113,26 +113,30 @@ connect <- data.frame(From=c("l-Dorsolateral Prefrontal Cortex",
                              "State-Dependent", "State-Dependent", "State-Dependent", "State-Dependent"))
 
 connect$Type <- as_factor(connect$Type)
+#separating overlapping edges to be drawn with different tensions
+connect_1 <- filter(connect, !grepl("Garza-Villarreal|Su", Study))
+connect_2 <- filter(connect, grepl("Garza-Villarreal|Su", Study))
 
 from = match(connect$From, vertices$name)
 to = match(connect$To, vertices$name)
+
+from_1 = match(connect_1$From, vertices$name)
+to_1 = match(connect_1$To, vertices$name)
+
+from_2 = match(connect_2$From, vertices$name)
+to_2 = match(connect_2$To, vertices$name)
+
+
 
 vertices$id <- NA
 myleaves <- which(is.na( match(vertices$name, hierarchy$from) ))
 nleaves <- length(myleaves)
 vertices$id[ myleaves ] <- seq(1:nleaves)
-
 vertices$angle <- 6.428571428571429 + 90 - 360 * vertices$id / nleaves
-
-# calculate the alignment of labels: right or left
-# If I am on the left part of the plot, my labels have currently an angle < -90
 vertices$hjust <- ifelse(vertices$angle < -90 , 1, 0)
-
-# flip angle BY to make them readable
 vertices$angle <- ifelse(vertices$angle < -90, vertices$angle+180, vertices$angle)
 
 graph <- graph_from_data_frame(hierarchy, vertices = vertices)
-
 layout <- create_layout(graph, layout = "dendrogram", offset=pi/3, circular = TRUE)
 
 x1=0
@@ -204,27 +208,38 @@ layout[39,1:2] = pts.circle[7,]
 layout$x=layout$x*5
 layout$y=layout$y*5
 
+layout <- mutate(layout, Network = substring(Group, first = 3))
+
+LINES = c("Enhanced" = "solid", "Decreased" = "dashed", "State-Dependent" = "dotdash")
 
 Image <- ggraph(layout)+ 
-  geom_conn_bundle(data = get_con(from = from,
-                                  to = to,
-                                  Study = connect$Study,
-                                  Connectivity_Alteration = connect$Type),
-                   aes(colour=Study, linetype=Connectivity_Alteration),
-                   tension = 0.8, width =0.8)+
-  scale_edge_colour_brewer(type = "qual", palette = 3, direction=-1)+
   
-  geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05))+
+  geom_conn_bundle(data = get_con(from = from_1,
+                                  to = to_1,
+                                  Study = connect_1$Study,
+                                  Connectivity_Alteration = connect_1$Type),
+                   aes(colour=Study, linetype=Connectivity_Alteration),
+                   tension = 0.8, width =0.9)+
+  geom_conn_bundle(data = get_con(from = from_2,
+                                  to = to_2,
+                                  Study = connect_2$Study,
+                                  Connectivity_Alteration = connect_2$Type),
+                   aes(colour=Study, linetype=Connectivity_Alteration),
+                   tension = 0.75, width =0.9)+
+  
+  scale_edge_colour_brewer(type = "qual", palette = "Paired", direction=1)+
+  
+  geom_node_point(aes(filter = leaf, x = x*1.05, y=y*1.05, shape = Network))+
+  
   geom_node_text(aes(x = x*1.1, y=y*1.1, filter = leaf, label=name,
                      angle = angle, hjust=hjust), size=2, alpha=1,
                  family="AvantGarde", fontface= "bold") +
+  
   theme_void() +
   guides(edge_color = guide_legend(override.aes = list(edge_width = 5))) +
-  
-  theme(
-    plot.margin=unit(c(0,0,0,0),"cm"),
-  ) +
+  theme(plot.margin=unit(c(0,0,0,0),"cm"),) +
   expand_limits(x = c(-8, 8), y = c(-8, 8))
+
 Image
 ggsave("my_plot.jpeg", width = 10, heigh =8, dpi=600)
 
