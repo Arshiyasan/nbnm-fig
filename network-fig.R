@@ -4,6 +4,7 @@ library("igraph")
 library("tidygraph")
 library("RColorBrewer")
 
+# specifying regions and networks
 l_reg = c("l-Posterior Cingulate Cortex", "l-Ventromedial Prefrontal Cortex", "l-Lateral Temporal Cortex",
           "l-Inferior Parietal Lobule", "l-Precuneus",
           "l-Dorsolateral Prefrontal Cortex", "l-Ventrolateral Prefrontal Cortex", "l-Lateral Parietal Cortex",
@@ -20,15 +21,18 @@ nets = c("Default Mode Network", "Default Mode Network", "Default Mode Network",
          "Limbic Network", "Limbic Network", "Salience Network", "Salience Network",
          "Salience Network")
 
+# create hierarchy
 d1 <- data.frame(from="origin", to=c("Left", "Right"))
 d2 <- data.frame(from=rep(d1$to, each=4), to=c(paste("l-", unique(nets)), rev(paste("r-", unique(nets)))))
 d3 <- data.frame(from=c(paste("l-", nets), rev(paste("r-", nets))), to=c(l_reg, rev(r_reg)))
 
 hierarchy <- rbind(d1, d2, d3)
 
+# create vertices dataframe
 vertices = data.frame(name = unique(c(as.character(hierarchy$from), as.character(hierarchy$to))))
 vertices$Group <- hierarchy$from[match(vertices$name, hierarchy$to)]
 
+# create connections dataframe
 connect <- data.frame(From=c("l-Dorsolateral Prefrontal Cortex",
                              "r-Posterior Cingulate Cortex", "r-Posterior Cingulate Cortex",
                              "r-Posterior Cingulate Cortex", "r-Posterior Cingulate Cortex",
@@ -113,7 +117,8 @@ connect <- data.frame(From=c("l-Dorsolateral Prefrontal Cortex",
                              "State-Dependent", "State-Dependent", "State-Dependent", "State-Dependent"))
 
 connect$Type <- as_factor(connect$Type)
-#separating overlapping edges to be drawn with different tensions
+
+# separating overlapping edges to be drawn with different tensions
 connect_1 <- filter(connect, !grepl("Garza-Villarreal|Su", Study))
 connect_2 <- filter(connect, grepl("Garza-Villarreal|Su", Study))
 
@@ -126,8 +131,7 @@ to_1 = match(connect_1$To, vertices$name)
 from_2 = match(connect_2$From, vertices$name)
 to_2 = match(connect_2$To, vertices$name)
 
-
-
+# angles of vertices, important later for label angles
 vertices$id <- NA
 myleaves <- which(is.na( match(vertices$name, hierarchy$from) ))
 nleaves <- length(myleaves)
@@ -136,9 +140,12 @@ vertices$angle <- 6.428571428571429 + 90 - 360 * vertices$id / nleaves
 vertices$hjust <- ifelse(vertices$angle < -90 , 1, 0)
 vertices$angle <- ifelse(vertices$angle < -90, vertices$angle+180, vertices$angle)
 
+# create layout
 graph <- graph_from_data_frame(hierarchy, vertices = vertices)
 layout <- create_layout(graph, layout = "dendrogram", offset=pi/3, circular = TRUE)
 
+# modify the layout to set the positions of origin and branch nodes inside the unit circle
+# manually. This part should be cleaned up at some point.
 x1=0
 y1=0
 x2 <- 1/3*cos(-0.1121997)
@@ -162,6 +169,7 @@ y7 <- 2/3*sin((3*pi/2)+0.3365992)
 x8=-x7
 y8=y7
 
+# setting the positions of the equally spaced vertices on the unit circle manually.
 n <- 28
 pts.circle <- t(sapply(1:n,function(r)c(cos((2*r*pi/n)+(pi/n)),sin((2*r*pi/n)+(pi/n)))))
 
@@ -210,8 +218,7 @@ layout$y=layout$y*5
 
 layout <- mutate(layout, Network = substring(Group, first = 3))
 
-LINES = c("Enhanced" = "solid", "Decreased" = "dashed", "State-Dependent" = "dotdash")
-
+#create hierarchical dendrogram, two sets of edges with different tensions to avoid overlap.
 Image <- ggraph(layout)+ 
   
   geom_conn_bundle(data = get_con(from = from_1,
